@@ -16,13 +16,13 @@ namespace TopTenAPIConnection
             try
             {
                 SqlConnectionStringBuilder cb = new SqlConnectionStringBuilder();
-                cb.DataSource = "****************"; ;
-                cb.UserID = "****************";
-                cb.Password = "****************"; ;
-                cb.InitialCatalog = "****************"; ;
+                cb.DataSource = "********************";
+                cb.UserID = "********************";
+                cb.Password = "********************";
+                cb.InitialCatalog = "********************";
                 // Set up your credentials (https://apps.twitter.com)
                 // Applies credentials for the current thread.If used for the first time, set up the ApplicationCredentials
-                Auth.SetUserCredentials("" * ***************";", "" * ***************";", "" * ***************";-" * ***************";", "" * ***************";");
+                Auth.SetUserCredentials("********************", "********************", "********************-********************", "********************");
                 var user = User.GetAuthenticatedUser();
 
                 // Enable Automatic RateLimit handling
