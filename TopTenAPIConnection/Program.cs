@@ -19,13 +19,13 @@ namespace TopTenAPIConnection
         {
             
             SqlConnectionStringBuilder cb = new SqlConnectionStringBuilder();
-            cb.DataSource = "*******************";
-            cb.UserID = "*******************@*******************";
-            cb.Password = "*******************";
-            cb.InitialCatalog = "*******************";
+            cb.DataSource = "****************************";
+            cb.UserID = "****************************@****************************-server";
+            cb.Password = "****************************";
+            cb.InitialCatalog = "****************************-db";
             // Set up your credentials (https://apps.twitter.com)
             // Applies credentials for the current thread.If used for the first time, set up the ApplicationCredentials
-            Auth.SetUserCredentials("*******************", "*******************", "*******************-*******************", "*******************");
+            Auth.SetUserCredentials("****************************", "****************************", "****************************-****************************", "****************************");
             var user = User.GetAuthenticatedUser();
             bool twitterCreds1InUse = true;
 
@@ -68,13 +68,13 @@ namespace TopTenAPIConnection
                     if (twitterCreds1InUse)
                     {
                         // Strategy #2 : Use different credentials
-                        Auth.SetUserCredentials("Z4O3fFsUtNVhkuLRcjRWDqfPA", "qUOAi8jgvTRXeMdTopHe32hOYu8ndDkChXAfVMnK80RZZGaH8U", "858816969759444992-ng2RYZ3LBT0nZPfg25spO6RIT1WQGjZ", "4vqoo04f8ipVSg9gCvvfClbb7hnhXcWP6iUhSAYfK32KD");
+                        Auth.SetUserCredentials("****************************", "****************************", "****************************-****************************", "****************************");
                         user = User.GetAuthenticatedUser();
                         twitterCreds1InUse = !twitterCreds1InUse;
                     }
                     else
                     {
-                        Auth.SetUserCredentials("OdPpBONAHJ8ntAdonQwYZnpsA", "U2B15BqG0dsGD6QDBFwcgqwH72N8jOoxv54Fbe4TrLIRHQxF9e", "858816969759444992-crXFkbz9bsbkgxeiUXyfOMizk0C9w5F", "84oGlMZ5FUvv6BEaMhzfBAgxJEL8odVaG7jsL9AVEDFBI");
+                        Auth.SetUserCredentials("****************************", "****************************", "****************************-****************************", "****************************");
                         user = User.GetAuthenticatedUser();
                         twitterCreds1InUse = !twitterCreds1InUse;
                     }
@@ -88,7 +88,7 @@ namespace TopTenAPIConnection
             {
                 if (recievedTweet.Tweet.Hashtags.Count() > 0)
                 {
-                    DateTime timeNow = DateTime.Now;
+                    Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
                     string tweetLanguage = recievedTweet.Tweet.Language.ToString();
 
                     // if language is not in DB add it
@@ -117,8 +117,8 @@ namespace TopTenAPIConnection
                     {
                         connection.Open();
                         StringBuilder sb = new StringBuilder();
-                        sb.Append("INSERT INTO Tweets (DateTime, LanguageID, TweetIdString) ");
-                        sb.Append(String.Format("VALUES ('{0}' , {1} , '{2}');", timeNow.ToString(), GetLanguageID(tweetLanguage), recievedTweet.Tweet.IdStr));
+                        sb.Append("INSERT INTO Tweets (UnixTimeStamp, LanguageID, TweetIdString) ");
+                        sb.Append(String.Format("VALUES ({0} , {1} , '{2}');", unixTimestamp, GetLanguageID(tweetLanguage), recievedTweet.Tweet.IdStr));
                         String sql = sb.ToString();
 
                         using (var command = new SqlCommand(sql, connection))
@@ -180,8 +180,8 @@ namespace TopTenAPIConnection
                         {
                             connection.Open();
                             StringBuilder sb = new StringBuilder();
-                            sb.Append("INSERT INTO TweetHashtags (HashtagID, TweetID) ");
-                            sb.Append(String.Format("VALUES ({0} , {1});", GetHashtagID(hashtag.ToString().ToUpper()), GetTweetID(recievedTweet.Tweet.IdStr)));
+                            sb.Append("INSERT INTO TweetHashtags (HashtagID, TweetID, UnixTimeStamp) ");
+                            sb.Append(String.Format("VALUES ({0} , '{1}', {2});", GetHashtagID(hashtag.ToString().ToUpper()), GetTweetID(recievedTweet.Tweet.IdStr), unixTimestamp));
                             String sql = sb.ToString();
 
                             using (var command = new SqlCommand(sql, connection))
@@ -210,7 +210,7 @@ namespace TopTenAPIConnection
                     StringBuilder sb = new StringBuilder();
                     sb.Append("SELECT ID ");
                     sb.Append("FROM Tweets ");
-                    sb.Append(String.Format("WHERE TweetIdString ={0};", tweetIdString));
+                    sb.Append(String.Format("WHERE TweetIdString={0};", tweetIdString));
                     String sql = sb.ToString();
 
                     SqlCommand command = new SqlCommand(sql, connection);
@@ -229,7 +229,7 @@ namespace TopTenAPIConnection
             }
 
             // Gets ID of Hashtag
-            string GetHashtagID(string hashtag)
+            int GetHashtagID(string hashtag)
             {
                 StringBuilder result = new StringBuilder();
 
@@ -255,11 +255,11 @@ namespace TopTenAPIConnection
                     }
                     connection.Close();
                 }
-                return result.ToString();
+                return Int32.Parse(result.ToString());
             }
 
             // Gets ID of language
-            string GetLanguageID(string language)
+            int GetLanguageID(string language)
             {
                 StringBuilder result = new StringBuilder();
 
@@ -285,7 +285,7 @@ namespace TopTenAPIConnection
                     }
                     connection.Close();
                 }
-                return result.ToString();
+                return Int32.Parse(result.ToString());
             }
 
             // Checks DB for existing Hastag with same name
