@@ -17,15 +17,16 @@ namespace TopTenAPIConnection
     {
         static void Main(string[] args)
         {
-            
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11;
+
             SqlConnectionStringBuilder cb = new SqlConnectionStringBuilder();
-            cb.DataSource = "****************************";
-            cb.UserID = "****************************@****************************-server";
-            cb.Password = "****************************";
-            cb.InitialCatalog = "****************************-db";
+            cb.DataSource = "toptenhashtags-server.database.windows.net";
+            cb.UserID = "AndyTenholder@toptenhashtags-server";
+            cb.Password = "*************************";
+            cb.InitialCatalog = "TestDatabase";
             // Set up your credentials (https://apps.twitter.com)
             // Applies credentials for the current thread.If used for the first time, set up the ApplicationCredentials
-            Auth.SetUserCredentials("****************************", "****************************", "****************************-****************************", "****************************");
+            Auth.SetUserCredentials("*************************", "*************************", "*************************-*************************", "*************************");
             var user = User.GetAuthenticatedUser();
             bool twitterCreds1InUse = true;
 
@@ -43,13 +44,12 @@ namespace TopTenAPIConnection
                 }
                 catch (Exception ex)
                 {
-                    Thread.Sleep(2000);
+                    var exceptionThatCausedTheStreamToStop = arguems.Exception;
+                    Console.WriteLine("------------ Error {0} --------------------", exceptionThatCausedTheStreamToStop);
+                    Thread.Sleep(1000);
+                    Console.WriteLine("------------ Stream Restarted --------------------");
                     stream.StartStream();
                 }
-                var exceptionThatCausedTheStreamToStop = arguems.Exception;
-                Console.WriteLine("------------ Error {0} --------------------", exceptionThatCausedTheStreamToStop);
-                var twitterDisconnectMessage = arguems.DisconnectMessage;
-                Console.WriteLine("------------ Message {0} --------------------", twitterDisconnectMessage);
             };
 
             TweetinviEvents.QueryBeforeExecute += (sender, arguements) =>
@@ -65,27 +65,19 @@ namespace TopTenAPIConnection
                         return;
                     }
 
-                    if (twitterCreds1InUse)
-                    {
-                        // Strategy #2 : Use different credentials
-                        Auth.SetUserCredentials("****************************", "****************************", "****************************-****************************", "****************************");
-                        user = User.GetAuthenticatedUser();
-                        twitterCreds1InUse = !twitterCreds1InUse;
-                    }
-                    else
-                    {
-                        Auth.SetUserCredentials("****************************", "****************************", "****************************-****************************", "****************************");
-                        user = User.GetAuthenticatedUser();
-                        twitterCreds1InUse = !twitterCreds1InUse;
-                    }
-                    
+                    // Strategy #1 : Wait for RateLimits to be available
+                    Console.WriteLine("Waiting for RateLimits until : {0}", queryRateLimits.ResetDateTime.ToLongTimeString());
+                    Thread.Sleep((int)queryRateLimits.ResetDateTimeInMilliseconds);
 
                 }
             };
 
+            int tweetcount = 0;
 
             stream.TweetReceived += (sender, recievedTweet) =>
             {
+                tweetcount += 1;
+                Console.WriteLine(tweetcount);
                 if (recievedTweet.Tweet.Hashtags.Count() > 0)
                 {
                     Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
@@ -111,14 +103,26 @@ namespace TopTenAPIConnection
                         }
                     }
 
+                    StringBuilder stringBuilder = new StringBuilder();
+                    for(int x=0; x < recievedTweet.Tweet.Hashtags.Count; x++)
+                    {
+                        if (x > 0)
+                            {
+                                stringBuilder.Append("/");
+                            }
+                        stringBuilder.Append(recievedTweet.Tweet.Hashtags[x].ToString().ToUpper());
+                    }
+                    string hashtags = stringBuilder.ToString();
+
                     // Create new tweet object and add to db
+                    // TODO Retrieve Hashtag Strings
 
                     using (var connection = new SqlConnection(cb.ConnectionString))
                     {
                         connection.Open();
                         StringBuilder sb = new StringBuilder();
-                        sb.Append("INSERT INTO Tweets (UnixTimeStamp, LanguageID, TweetIdString) ");
-                        sb.Append(String.Format("VALUES ({0} , {1} , '{2}');", unixTimestamp, GetLanguageID(tweetLanguage), recievedTweet.Tweet.IdStr));
+                        sb.Append("INSERT INTO Tweets (UnixTimeStamp, LanguageID, TweetIdString, Hashtags) ");
+                        sb.Append(String.Format("VALUES ({0} , {1} , '{2}', N'{3}');", unixTimestamp, GetLanguageID(tweetLanguage), recievedTweet.Tweet.IdStr, hashtags));
                         String sql = sb.ToString();
 
                         using (var command = new SqlCommand(sql, connection))
