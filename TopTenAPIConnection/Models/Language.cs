@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TopTenAPIConnection.Models
 {
-    class Hashtag
+    class Language
     {
         public int ID { get; set; }
         public string Name { get; set; }

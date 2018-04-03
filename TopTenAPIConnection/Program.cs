@@ -8,6 +8,7 @@ using System.Net;
 using System.Security.Authentication;
 using Tweetinvi.Core.Exceptions;
 using System.Threading;
+using TopTenAPIConnection.Models;
 //using System.Data;           // For:  SqlDbType , ParameterDirection
 
 
@@ -22,13 +23,68 @@ namespace TopTenAPIConnection
             SqlConnectionStringBuilder cb = new SqlConnectionStringBuilder();
             cb.DataSource = "toptenhashtags-server.database.windows.net";
             cb.UserID = "AndyTenholder@toptenhashtags-server";
-            cb.Password = "*************************";
-            cb.InitialCatalog = "TestDatabase";
+            cb.Password = "DeadDudesDontTalk1825";
+            cb.InitialCatalog = "EfficiencyTest";
             // Set up your credentials (https://apps.twitter.com)
             // Applies credentials for the current thread.If used for the first time, set up the ApplicationCredentials
-            Auth.SetUserCredentials("*************************", "*************************", "*************************-*************************", "*************************");
+            Auth.SetUserCredentials("OdPpBONAHJ8ntAdonQwYZnpsA", "U2B15BqG0dsGD6QDBFwcgqwH72N8jOoxv54Fbe4TrLIRHQxF9e", "858816969759444992-crXFkbz9bsbkgxeiUXyfOMizk0C9w5F", "84oGlMZ5FUvv6BEaMhzfBAgxJEL8odVaG7jsL9AVEDFBI");
             var user = User.GetAuthenticatedUser();
             bool twitterCreds1InUse = true;
+
+            // Lists to hold data on known languages and hashtags
+            // Eliminate need to hit database in order to 
+            List<Language> Languages = new List<Language>();
+            List<Hashtag> Hashtags = new List<Hashtag>();
+
+            // Create a language object for each language in the DB and add Language object to Languages List
+            using (var connection = new SqlConnection(cb.ConnectionString))
+            {
+                connection.Open();
+                StringBuilder sb = new StringBuilder();
+                sb.Append("SELECT * FROM Languages");
+                String sql = sb.ToString();
+                SqlDataReader dataReader;
+
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    dataReader = command.ExecuteReader();
+                    while(dataReader.Read())
+                    {
+                        Languages.Add(new Language()
+                        {
+                            ID = dataReader.GetInt32(dataReader.GetOrdinal("ID")),
+                            Name = dataReader.GetString(dataReader.GetOrdinal("Name"))
+                        });
+                    }
+                    dataReader.Close();
+                }
+                connection.Close();
+            }
+
+            // Create a Hashtag object for each Hashtag in the DB and add Hashtag object to Hashtags List
+            using (var connection = new SqlConnection(cb.ConnectionString))
+            {
+                connection.Open();
+                StringBuilder sb = new StringBuilder();
+                sb.Append("SELECT * FROM Hashtags");
+                String sql = sb.ToString();
+                SqlDataReader dataReader;
+
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    dataReader = command.ExecuteReader();
+                    while (dataReader.Read())
+                    {
+                        Hashtags.Add(new Hashtag()
+                        {
+                            ID = dataReader.GetInt32(dataReader.GetOrdinal("ID")),
+                            Name = dataReader.GetString(dataReader.GetOrdinal("Name"))
+                        });
+                    }
+                    dataReader.Close();
+                }
+                connection.Close();
+            }
 
             // Enable Automatic RateLimit handling
             RateLimit.RateLimitTrackerMode = RateLimitTrackerMode.TrackAndAwait;
@@ -81,26 +137,35 @@ namespace TopTenAPIConnection
                 if (recievedTweet.Tweet.Hashtags.Count() > 0)
                 {
                     Int32 unixTimestamp = (Int32)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalSeconds;
-                    string tweetLanguage = recievedTweet.Tweet.Language.ToString();
+                    string tweetLanguageString = recievedTweet.Tweet.Language.ToString();
 
                     // if language is not in DB add it
-                    if (GetLanguage(recievedTweet.Tweet.Language.ToString()) == "")
+                    Language tweetLanguageObject = Languages.SingleOrDefault(l => l.Name == tweetLanguageString);
+                    if (tweetLanguageObject == null)
                     {
                         using (var connection = new SqlConnection(cb.ConnectionString))
                         {
                             connection.Open();
                             StringBuilder sb = new StringBuilder();
                             sb.Append("INSERT INTO Languages (Name) ");
-                            sb.Append(String.Format("VALUES ('{0}');", tweetLanguage));
+                            sb.Append(String.Format("VALUES ('{0}');", tweetLanguageString));
                             String sql = sb.ToString();
 
                             using (var command = new SqlCommand(sql, connection))
                             {
-                                Console.WriteLine("Added Language {0} to database.", tweetLanguage);
+                                Console.WriteLine("Added Language {0} to database.", tweetLanguageString);
                                 command.ExecuteNonQuery();
                             }
                             connection.Close();
                         }
+                        Language newLanguage = new Language()
+                        {
+                            ID = GetLanguageID(tweetLanguageString),
+                            Name = tweetLanguageString
+                        };
+                        Languages.Add(newLanguage);
+
+                        tweetLanguageObject = newLanguage;
                     }
 
                     StringBuilder stringBuilder = new StringBuilder();
@@ -115,14 +180,13 @@ namespace TopTenAPIConnection
                     string hashtags = stringBuilder.ToString();
 
                     // Create new tweet object and add to db
-                    // TODO Retrieve Hashtag Strings
 
                     using (var connection = new SqlConnection(cb.ConnectionString))
                     {
                         connection.Open();
                         StringBuilder sb = new StringBuilder();
                         sb.Append("INSERT INTO Tweets (UnixTimeStamp, LanguageID, TweetIdString, Hashtags) ");
-                        sb.Append(String.Format("VALUES ({0} , {1} , '{2}', N'{3}');", unixTimestamp, GetLanguageID(tweetLanguage), recievedTweet.Tweet.IdStr, hashtags));
+                        sb.Append(String.Format("VALUES ({0} , {1} , '{2}', N'{3}');", unixTimestamp, tweetLanguageObject.ID, recievedTweet.Tweet.IdStr, hashtags));
                         String sql = sb.ToString();
 
                         using (var command = new SqlCommand(sql, connection))
@@ -132,7 +196,7 @@ namespace TopTenAPIConnection
                         connection.Close();
                     }
 
-                    List<string> hashtagList = new List<string>();
+                    List<Hashtag> hashtagList = new List<Hashtag>();
 
                     // if hashtag is not in DB add it
                     foreach (var hashtag in recievedTweet.Tweet.Hashtags)
@@ -140,12 +204,14 @@ namespace TopTenAPIConnection
                         // Convert hashtag to uppercase string
                         var upperHashtag = hashtag.ToString().ToUpper();
 
-                        if (GetHashtag(upperHashtag) != "")
+                        Hashtag tweetHashtagObject = Hashtags.SingleOrDefault(h => h.Name == upperHashtag);
+
+                        if (tweetHashtagObject != null)
                         {
 
-                            if (!hashtagList.Contains(upperHashtag))
+                            if (!hashtagList.Contains(tweetHashtagObject))
                             {
-                                hashtagList.Add(upperHashtag);
+                                hashtagList.Add(tweetHashtagObject);
                             }
                         }
                         else
@@ -164,19 +230,31 @@ namespace TopTenAPIConnection
                                     Console.WriteLine("Added Hashtag {0} to database.", upperHashtag);
                                 }
                                 connection.Close();
+
+                                Hashtag newHashtag = new Hashtag()
+                                {
+                                    ID = GetHashtagID(upperHashtag),
+                                    Name = upperHashtag
+                                };
+                                Hashtags.Add(newHashtag);
+
+                                tweetHashtagObject = newHashtag;
                             }
-                            if (!hashtagList.Contains(upperHashtag))
+                            if (!hashtagList.Contains(tweetHashtagObject))
                             {
-                                hashtagList.Add(upperHashtag);
+                                hashtagList.Add(tweetHashtagObject);
                             }
                         }
 
                     }
 
+                    string TweetID = GetTweetID(recievedTweet.Tweet.IdStr);
+
                     // Create TweetHashtag object for each hashtag
                     foreach (var hashtag in hashtagList)
                     {
-                        if (GetTweetID(recievedTweet.Tweet.IdStr).Length > 7)
+                        
+                        if (TweetID.Length > 7)
                         {
                             break;
                         }
@@ -185,7 +263,7 @@ namespace TopTenAPIConnection
                             connection.Open();
                             StringBuilder sb = new StringBuilder();
                             sb.Append("INSERT INTO TweetHashtags (HashtagID, TweetID, UnixTimeStamp) ");
-                            sb.Append(String.Format("VALUES ({0} , '{1}', {2});", GetHashtagID(hashtag.ToString().ToUpper()), GetTweetID(recievedTweet.Tweet.IdStr), unixTimestamp));
+                            sb.Append(String.Format("VALUES ({0} , '{1}', {2});", hashtag.ID, TweetID, unixTimestamp));
                             String sql = sb.ToString();
 
                             using (var command = new SqlCommand(sql, connection))
