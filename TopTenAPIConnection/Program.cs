@@ -36,6 +36,77 @@ namespace TopTenAPIConnection
             List<Language> Languages = new List<Language>();
             List<Hashtag> Hashtags = new List<Hashtag>();
 
+            // Variables to hold ID #s for Tweet, Langauge, and Hashtag
+            // Highest ID value for each will be gathered when program starts
+            // ID value will be incremented each time an object is sent to the database
+
+            int MaxLanguageID = 0;
+            int MaxTweetID = 0;
+            int MaxHashtagID = 0;
+
+            // Get Max ID value for languages
+            using (var connection = new SqlConnection(cb.ConnectionString))
+            {
+                connection.Open();
+                StringBuilder sb = new StringBuilder();
+                sb.Append("SELECT MAX(ID) FROM Languages");
+                String sql = sb.ToString();
+                SqlDataReader dataReader;
+
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    dataReader = command.ExecuteReader();
+                    while (dataReader.Read())
+                    {
+                        MaxLanguageID = dataReader.GetInt32(0);
+                    }
+                    dataReader.Close();
+                }
+                connection.Close();
+            }
+
+            // Get Max ID value for Tweets
+            using (var connection = new SqlConnection(cb.ConnectionString))
+            {
+                connection.Open();
+                StringBuilder sb = new StringBuilder();
+                sb.Append("SELECT MAX(ID) FROM Tweets");
+                String sql = sb.ToString();
+                SqlDataReader dataReader;
+
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    dataReader = command.ExecuteReader();
+                    while (dataReader.Read())
+                    {
+                        MaxTweetID = dataReader.GetInt32(0);
+                    }
+                    dataReader.Close();
+                }
+                connection.Close();
+            }
+
+            // Get Max ID value for Hashtags
+            using (var connection = new SqlConnection(cb.ConnectionString))
+            {
+                connection.Open();
+                StringBuilder sb = new StringBuilder();
+                sb.Append("SELECT MAX(ID) FROM Hashtags");
+                String sql = sb.ToString();
+                SqlDataReader dataReader;
+
+                using (var command = new SqlCommand(sql, connection))
+                {
+                    dataReader = command.ExecuteReader();
+                    while (dataReader.Read())
+                    {
+                        MaxHashtagID = dataReader.GetInt32(0);
+                    }
+                    dataReader.Close();
+                }
+                connection.Close();
+            }
+
             // Create a language object for each language in the DB and add Language object to Languages List
             using (var connection = new SqlConnection(cb.ConnectionString))
             {
@@ -158,9 +229,12 @@ namespace TopTenAPIConnection
                             }
                             connection.Close();
                         }
+
+                        MaxLanguageID += 1;
+
                         Language newLanguage = new Language()
                         {
-                            ID = GetLanguageID(tweetLanguageString),
+                            ID = MaxLanguageID,
                             Name = tweetLanguageString
                         };
                         Languages.Add(newLanguage);
@@ -180,6 +254,8 @@ namespace TopTenAPIConnection
                     string hashtags = stringBuilder.ToString();
 
                     // Create new tweet object and add to db
+
+                    MaxTweetID += 1;
 
                     using (var connection = new SqlConnection(cb.ConnectionString))
                     {
@@ -231,9 +307,11 @@ namespace TopTenAPIConnection
                                 }
                                 connection.Close();
 
+                                MaxHashtagID += 1;
+
                                 Hashtag newHashtag = new Hashtag()
                                 {
-                                    ID = GetHashtagID(upperHashtag),
+                                    ID = MaxHashtagID,
                                     Name = upperHashtag
                                 };
                                 Hashtags.Add(newHashtag);
@@ -248,16 +326,11 @@ namespace TopTenAPIConnection
 
                     }
 
-                    string TweetID = GetTweetID(recievedTweet.Tweet.IdStr);
+                    string TweetID = MaxTweetID.ToString();
 
                     // Create TweetHashtag object for each hashtag
                     foreach (var hashtag in hashtagList)
                     {
-                        
-                        if (TweetID.Length > 7)
-                        {
-                            break;
-                        }
                         using (var connection = new SqlConnection(cb.ConnectionString))
                         {
                             connection.Open();
