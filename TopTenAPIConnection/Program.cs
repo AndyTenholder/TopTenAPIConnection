@@ -22,9 +22,9 @@ namespace TopTenAPIConnection
 
             SqlConnectionStringBuilder cb = new SqlConnectionStringBuilder();
             cb.DataSource = "toptenhashtags-server.database.windows.net";
-            cb.UserID = "AndyTenholder@toptenhashtags-server";
-            cb.Password = "DeadDudesDontTalk1825";
-            cb.InitialCatalog = "EfficiencyTest";
+            cb.UserID = "************************@************************-server";
+            cb.Password = "************************";
+            cb.InitialCatalog = "************************";
             // Set up your credentials (https://apps.twitter.com)
             // Applies credentials for the current thread.If used for the first time, set up the ApplicationCredentials
             Auth.SetUserCredentials("OdPpBONAHJ8ntAdonQwYZnpsA", "U2B15BqG0dsGD6QDBFwcgqwH72N8jOoxv54Fbe4TrLIRHQxF9e", "858816969759444992-crXFkbz9bsbkgxeiUXyfOMizk0C9w5F", "84oGlMZ5FUvv6BEaMhzfBAgxJEL8odVaG7jsL9AVEDFBI");
